@@ -1,0 +1,133 @@
+module App
+
+open Elmish
+open Elmish.React
+open Feliz
+
+[<RequireQualifiedAccess>]
+type Page =
+    | Counter
+    | TextInput
+
+type CounterState = { Count: int }
+
+type InputTextState =
+    { InputText: string
+      IsUpperCase: bool }
+
+type State =
+    { Counter: CounterState
+      InputText: InputTextState
+      CurrentPage: Page }
+
+type CounterMsg =
+    | Increment
+    | Decrement
+
+type InputTextMsg =
+    | InputTextChanged of string
+    | UpperCaseToggled of bool
+
+type Msg =
+    | CounterMsg of CounterMsg
+    | InputTextMsg of InputTextMsg
+    | SwitchPage of Page
+
+let initCounter () = { Count = 0 }
+
+let initInputText () = { InputText = ""; IsUpperCase = false }
+
+let init () =
+    { Counter = initCounter ()
+      InputText = initInputText ()
+      CurrentPage = Page.Counter }
+
+let updateCounter (counterMsg: CounterMsg) (counterState: CounterState) =
+    match counterMsg with
+    | Increment ->
+        { counterState with
+              Count = counterState.Count + 1 }
+    | Decrement ->
+        { counterState with
+              Count = counterState.Count - 1 }
+
+let updateInputText (inputTextMsg: InputTextMsg) (inputTextState: InputTextState) =
+    match inputTextMsg with
+    | InputTextChanged text -> { inputTextState with InputText = text }
+    | UpperCaseToggled upperCase ->
+        { inputTextState with
+              IsUpperCase = upperCase }
+
+let update (msg: Msg) (state: State): State =
+    match msg with
+    | CounterMsg counterMsg ->
+        let counter = updateCounter counterMsg state.Counter
+        { state with Counter = counter }
+
+    | InputTextMsg inputTextMsg ->
+        let inputText =
+            updateInputText inputTextMsg state.InputText
+
+        { state with InputText = inputText }
+
+    | SwitchPage page -> { state with CurrentPage = page }
+
+let divider =
+    Html.div [ prop.style [ style.margin 10 ] ]
+
+let renderCounter (state: CounterState) (dispatch: CounterMsg -> unit) =
+    Html.div
+        [ Html.button
+            [ prop.onClick (fun _ -> dispatch Increment)
+              prop.text "Increment" ]
+
+          Html.button
+              [ prop.onClick (fun _ -> dispatch Decrement)
+                prop.text "Decrement" ]
+
+          Html.h1 state.Count ]
+
+let renderInputText (state: InputTextState) (dispatch: InputTextMsg -> unit) =
+    Html.div
+        [ Html.input
+            [ prop.valueOrDefault state.InputText
+              prop.onChange (InputTextChanged >> dispatch) ]
+
+          divider
+
+          Html.input
+              [ prop.id "uppercase-checkbox"
+                prop.type'.checkbox
+                prop.isChecked state.IsUpperCase
+                prop.onChange (UpperCaseToggled >> dispatch) ]
+
+          Html.label
+              [ prop.htmlFor "uppercase-checkbox"
+                prop.text "Uppercase" ]
+
+          Html.h3 (if state.IsUpperCase then state.InputText.ToUpper() else state.InputText) ]
+
+let render (state: State) (dispatch: Msg -> unit) =
+
+    match state.CurrentPage with
+    | Page.Counter ->
+        Html.div
+            [ Html.button
+                [ prop.text "Show Text Input"
+                  prop.onClick (fun _ -> dispatch (SwitchPage Page.TextInput)) ]
+
+              divider
+              renderCounter state.Counter (CounterMsg >> dispatch) ]
+
+    | Page.TextInput ->
+        Html.div
+            [ Html.button
+                [ prop.text "Show counter"
+                  prop.onClick (fun _ -> dispatch (SwitchPage Page.Counter)) ]
+
+              divider
+              renderInputText state.InputText (InputTextMsg >> dispatch) ]
+
+Program.mkSimple init update render
+|> Program.withReactSynchronous "elmish-app"
+|> Program.run
