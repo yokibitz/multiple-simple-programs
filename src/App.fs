@@ -6,65 +6,86 @@ open Feliz
 
 [<RequireQualifiedAccess>]
 type Page =
-    | Counter
-    | TextInput
+    | Counter of Counter.State
+    | InputText of InputText.State
 
-type State =
-    { Counter: Counter.State
-      InputText: InputText.State
-      CurrentPage: Page }
+type State = { CurrentPage: Page }
 
 type Msg =
     | CounterMsg of Counter.Msg
     | InputTextMsg of InputText.Msg
-    | SwitchPage of Page
+    | SwitchToCounter of count: int
+    | SwitchToInputText
 
 
 let init () =
-    { Counter = Counter.init ()
-      InputText = InputText.init ()
-      CurrentPage = Page.Counter },
-    Cmd.none
+    let initialPage, initialCmd = Counter.init 0
+    { CurrentPage = Page.Counter initialPage }, initialCmd
+
 
 
 let update (msg: Msg) (state: State) =
-    match msg with
-    | CounterMsg counterMsg ->
-        let counter, counterCmd = Counter.update counterMsg state.Counter
+    match state.CurrentPage, msg with
+    | Page.Counter counterState, CounterMsg counterMsg ->
+        let counterState, counterCmd = Counter.update counterMsg counterState
 
-        let appCmd = Cmd.map CounterMsg counterCmd
+        let nextState =
+            { state with
+                  CurrentPage = Page.Counter counterState }
 
-        { state with Counter = counter }, appCmd
+        let nextCmd = Cmd.map CounterMsg counterCmd
+        nextState, nextCmd
+    | Page.InputText inputTextState, InputTextMsg inputTextMsg ->
+        let inputTextState, inputTextCmd =
+            InputText.update inputTextMsg inputTextState
 
-    | InputTextMsg inputTextMsg ->
-        let inputText =
-            InputText.update inputTextMsg state.InputText
+        let nextState =
+            { state with
+                  CurrentPage = Page.InputText inputTextState }
 
-        { state with InputText = inputText }, Cmd.none
+        let nextCmd = Cmd.map InputTextMsg inputTextCmd
+        nextState, nextCmd
+    | _, SwitchToCounter count ->
+        let counterState, counterCmd = Counter.init count
 
-    | SwitchPage page -> { state with CurrentPage = page }, Cmd.none
+        let nextState =
+            { state with
+                  CurrentPage = Page.Counter counterState }
 
+        let nextCmd = Cmd.map CounterMsg counterCmd
+        nextState, nextCmd
+    | _, SwitchToInputText ->
+        let inputTextState, inputTextCmd = InputText.init ()
+
+        let nextState =
+            { state with
+                  CurrentPage = Page.InputText inputTextState }
+
+        let nextCmd = Cmd.map InputTextMsg inputTextCmd
+        nextState, nextCmd
+    | _, _ -> state, Cmd.none
 
 let render (state: State) (dispatch: Msg -> unit) =
 
     match state.CurrentPage with
-    | Page.Counter ->
+    | Page.Counter counterState ->
         Html.div
             [ Html.button
                 [ prop.text "Show Text Input"
-                  prop.onClick (fun _ -> dispatch (SwitchPage Page.TextInput)) ]
+                  prop.onClick (fun _ -> dispatch SwitchToInputText) ]
 
               Common.divider
-              Counter.render state.Counter (CounterMsg >> dispatch) ]
 
-    | Page.TextInput ->
+              Counter.render counterState (CounterMsg >> dispatch) ]
+
+    | Page.InputText inputTextState ->
         Html.div
             [ Html.button
                 [ prop.text "Show counter"
-                  prop.onClick (fun _ -> dispatch (SwitchPage Page.Counter)) ]
+                  prop.onClick (fun _ -> 0 |> SwitchToCounter |> dispatch) ]
 
               Common.divider
-              InputText.render state.InputText (InputTextMsg >> dispatch) ]
+              InputText.render inputTextState (InputTextMsg >> dispatch) ]
 
 Program.mkProgram init update render
 |> Program.withReactSynchronous "elmish-app"

@@ -1,6 +1,7 @@
 module InputText
 
 open Feliz
+open Elmish
 
 type State =
     { InputText: string
@@ -10,12 +11,13 @@ type Msg =
     | InputTextChanged of string
     | UpperCaseToggled of bool
 
-let init () = { InputText = ""; IsUpperCase = false }
+let init () =
+    { InputText = ""; IsUpperCase = false }, Cmd.none
 
 let update msg state =
     match msg with
-    | InputTextChanged text -> { state with InputText = text }
-    | UpperCaseToggled upperCase -> { state with IsUpperCase = upperCase }
+    | InputTextChanged text -> { state with InputText = text }, Cmd.none
+    | UpperCaseToggled upperCase -> { state with IsUpperCase = upperCase }, Cmd.none
 
 let render state dispatch =
     Html.div

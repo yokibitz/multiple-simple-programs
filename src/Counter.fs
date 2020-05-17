@@ -11,7 +11,7 @@ type Msg =
     | Decrement
     | IncrementDelayed
 
-let init () = { Count = 0 }
+let init count = { Count = count }, Cmd.none
 
 let update msg state =
     match msg with
